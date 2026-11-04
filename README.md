@@ -8,7 +8,9 @@ enable them in the WebUI, done.
 Works on a current-structure OpenLumara install (the `modules/<name>/
 module.py` layout). Nothing here touches `core/`.
 
-## context_compressor
+## The two modules
+
+### 1 · `context_compressor` — required
 
 Automatic, reversible context compression. Instead of OpenLumara's
 "drop the oldest messages" fallback, it folds the middle of the
@@ -93,7 +95,7 @@ Notes:
   stored (a truncated handoff poisons the next fold).
 - Secrets are redacted from summaries before storage.
 
-## session_archive
+### 2 · `session_archive` — install alongside it
 
 A per-chat, append-only sidecar archive of every message row, written
 as the conversation happens. **Install both modules.** The fold

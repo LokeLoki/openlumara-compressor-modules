@@ -741,7 +741,7 @@ class ContextCompressor(core.module.Module):
         # window, matching the tail size the old target_ratio-0.26 produced.
         "tail_ratio": 0.20,
         "protect_first_n": 5,
-        "protect_last_n": 60,
+        "protect_last_n": 45,
         # ---- head/tail hardening ( ports) ----
         # Verbatim early-row protection decays after the first fold: rows
         # stranded behind the cutoff are neither sent nor summarized.
@@ -880,7 +880,7 @@ class ContextCompressor(core.module.Module):
         Returns the index where the protected tail starts."""
         n = len(messages)
         budget = self._tail_budget()
-        min_protect = min(int(self.config.get("protect_last_n", default=60)),
+        min_protect = min(int(self.config.get("protect_last_n", default=45)),
                           n, MAX_TAIL_MESSAGE_FLOOR)
         accumulated = 0
         boundary = n
@@ -1482,7 +1482,7 @@ class ContextCompressor(core.module.Module):
             f"  usage:        {usage:,} / {max_context:,} tokens ({(usage / max_context * 100) if max_context else 0:.1f}%)",
             f"  threshold:    {thr:,} ({float(self.config.get('threshold', default=0.75)) * 100:.0f}% of context)",
             f"  msg limit:    {int(self.config.get('max_messages', default=400))} messages (OR-trigger)",
-            f"  tail budget:  {self._tail_budget():,} tokens (floor {MAX_TAIL_MESSAGE_FLOOR}, cap {int(self.config.get('protect_last_n', default=60))} msgs)",
+            f"  tail budget:  {self._tail_budget():,} tokens (floor {MAX_TAIL_MESSAGE_FLOOR}, cap {int(self.config.get('protect_last_n', default=45))} msgs)",
             f"  head protect: {int(self.config.get('protect_first_n', default=5))} messages",
             f"  preset:       {self._preset().get('label', 'default')}",
             f"  compactions:  {st['compactions']} | failures: {st['failures']}",
