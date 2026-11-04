@@ -96,9 +96,12 @@ Notes:
 ## session_archive
 
 A per-chat, append-only sidecar archive of every message row, written
-as the conversation happens. Pair it with the compressor: the fold
-shrinks what the *model* sees, the archive keeps everything *you*
-said and everything it said, forever, searchable.
+as the conversation happens. **Install both modules.** The fold
+shrinks what the *model* sees; the archive keeps everything *you*
+said and everything it said, forever, searchable. The compressor
+demotes old tool results to one-line stubs to fit the window —
+without the archive running, those raw outputs are gone for good.
+With it, `archive_search` recovers any of them on demand.
 
 - `archive_search` tool: keyword search across the archive
 - `archive_stats` tool: sizes and coverage
