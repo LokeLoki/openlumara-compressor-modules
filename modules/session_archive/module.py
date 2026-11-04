@@ -145,9 +145,16 @@ class SessionArchive(core.module.Module):
         msgs = chat.get("messages", [])
         sig = _row_sig(role, redacted)
         if dedup_recent:
-            for existing in msgs[-25:]:
-                if existing.get("sig") == sig:
-                    return
+            seen = self._store.get("_seen_sigs", {}).get(key, [])
+            recent_hit = any(e.get("sig") == sig for e in msgs[-25:])
+            if recent_hit or sig in seen:
+                return
+        if dedup_recent:
+            seen = self._store.get("_seen_sigs", {})
+            lst = seen.get(key, [])
+            lst.append(sig)
+            seen[key] = lst[-5000:]
+            self._store["_seen_sigs"] = seen
         msgs.append({
             "role": role,
             "content": redacted,
@@ -324,6 +331,13 @@ class SessionArchive(core.module.Module):
                     chat["messages"] = merged
                     self._store[key] = chat
                     ingested = len(rows)
+                    # register backfilled sigs in the persistent seen index so
+                    # _append's dedup covers rows that skipped _append()
+                    seen = self._store.get("_seen_sigs", {})
+                    lst = seen.get(key, [])
+                    lst.extend(m.get("sig") for m in merged if m.get("sig"))
+                    seen[key] = lst[-5000:]
+                    self._store["_seen_sigs"] = seen
                     self.channel.log(self.name, "backfilled " + str(ingested) + " rows for " + key)
         except Exception as e:
             self.channel.log(self.name, "backfill failed (kept going): " + str(e))
