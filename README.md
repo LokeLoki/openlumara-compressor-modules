@@ -123,6 +123,11 @@ StorageDict. No configuration needed; enable and forget.
    **threshold** to taste (0.75 is a good start on large windows; on
    16k-32k local models consider 0.7 to keep more verbatim tail).
 
+**Enabling the compressor automatically turns off the stock compressor
+and count-based trimming for as long as it's enabled, and restores
+them when disabled.** (Originals are snapshotted to
+`data/context_compressor_stock.json`; no manual config edits needed.)
+
 Uninstall: disable the module(s). Existing folds are plain
 OpenLumara cutoff markers — stock's own `/compress` and context
 builder understand them, so nothing breaks.

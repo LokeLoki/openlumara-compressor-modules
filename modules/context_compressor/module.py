@@ -28,6 +28,7 @@ protect_first_n / protect_last_n, summary_timeout, cap.
 import asyncio
 import hashlib
 import json
+import os
 import re
 import time
 import urllib.request
@@ -1194,6 +1195,76 @@ class ContextCompressor(core.module.Module):
             await self.channel.push(text)
         except Exception:
             pass
+
+
+    # ---------------- stock-config takeover ----------------
+    # While this module is enabled it owns the stock compressor knobs:
+    #   automatically_compress_context  -> off (we fold; stock must not also summarize)
+    #   api.max_messages                -> effectively unlimited (stock block-eviction
+    #                                      would delete history we keep fold-reversible
+    #                                      and the archive backfills from)
+    # Originals are snapshotted once to data/context_compressor_stock.json and
+    # restored by on_shutdown() when the module is disabled/reloaded. The
+    # 95% hard trim in core/context.py stays: it's the emergency net, not a rival.
+    _OVERRIDE_MAX_MESSAGES = 100000
+    _OVERRIDE_KEYS = ("automatically_compress_context", "max_messages")
+
+    def _snapshot_path(self):
+        return os.path.join(core.get_data_path(), "context_compressor_stock.json")
+
+    def _apply_config_takeover(self):
+        try:
+            import json as _json
+            path = self._snapshot_path()
+            snap = None
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        snap = _json.load(f)
+                except Exception:
+                    snap = None
+            if not isinstance(snap, dict):
+                # first takeover: save the user's current values
+                snap = {
+                    "automatically_compress_context": bool(core.config.get(
+                        "model", "automatically_compress_context", default=True)),
+                    "max_messages": int(core.config.get("api", "max_messages", default=200)),
+                }
+                with open(path, "w", encoding="utf-8") as f:
+                    _json.dump(snap, f, indent=2)
+            # apply (re-applied every boot/setting-reload; wins over manual edits)
+            core.config.ConfigManager(core.config.config, base_path=["model"]).set(
+                "automatically_compress_context", False)
+            core.config.ConfigManager(core.config.config, base_path=["api"]).set(
+                "max_messages", self._OVERRIDE_MAX_MESSAGES)
+            self._log("stock compressor overridden (auto-compress off, max_messages "
+                      f"-> {self._OVERRIDE_MAX_MESSAGES}); originals: {snap}")
+        except Exception as e:
+            self._log(f"config takeover failed (kept going): {e}")
+
+    def _restore_config(self):
+        try:
+            import json as _json
+            path = self._snapshot_path()
+            if not os.path.exists(path):
+                return
+            with open(path, "r", encoding="utf-8") as f:
+                snap = _json.load(f)
+            if isinstance(snap, dict):
+                core.config.ConfigManager(core.config.config, base_path=["model"]).set(
+                    "automatically_compress_context", bool(snap.get("automatically_compress_context", True)))
+                core.config.ConfigManager(core.config.config, base_path=["api"]).set(
+                    "max_messages", int(snap.get("max_messages", 200)))
+            os.remove(path)
+            self._log("stock compressor settings restored")
+        except Exception as e:
+            self._log(f"config restore failed (kept going): {e}")
+
+    async def on_ready(self):
+        self._apply_config_takeover()
+
+    async def on_shutdown(self):
+        self._restore_config()
 
     # ---------------- full compaction ----------------
     async def run_full(self, key=None, force=False):
