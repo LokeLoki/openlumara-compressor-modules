@@ -95,15 +95,20 @@ Notes:
   stored (a truncated handoff poisons the next fold).
 - Secrets are redacted from summaries before storage.
 
-### 2 · `session_archive` — install alongside it
+## session_archive
 
-A per-chat, append-only sidecar archive of every message row, written
+A per-chat, append-only **text** archive of every message row, written
 as the conversation happens. **Install both modules.** The fold
 shrinks what the *model* sees; the archive keeps everything *you*
 said and everything it said, forever, searchable. The compressor
 demotes old tool results to one-line stubs to fit the window —
 without the archive running, those raw outputs are gone for good.
 With it, `archive_search` recovers any of them on demand.
+
+Text-only by design: image parts and non-text payloads are not
+archived (the model-visible history replaces them with `[image]`
+placeholders anyway), and tool outputs are captured verbatim on every
+turn — user turn included — before any fold can demote them.
 
 - `archive_search` tool: keyword search across the archive
 - `archive_stats` tool: sizes and coverage
@@ -112,7 +117,9 @@ With it, `archive_search` recovers any of them on demand.
   archive immediately)
 
 Storage: `data/session_archive.json` via OpenLumara's standard
-StorageDict. No configuration needed; enable and forget.
+StorageDict. No configuration needed; enable and forget. A per-chat
+char cap (`max_archive_chars_per_chat`, default 2M, oldest rows
+dropped first; `0` = unlimited) keeps the file bounded.
 
 ## Install
 

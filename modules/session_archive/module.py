@@ -161,7 +161,9 @@ class SessionArchive(core.module.Module):
 
     async def _sync_unarchived_tool_rows(self):
         """Capture raw tool outputs from the live chat before context_compressor
-        demotes or summarizes them away."""
+        demotes or summarizes them away. Wide window: runs on the user turn too,
+        so even a burst of tool rows larger than one turn's worth gets caught
+        while still verbatim (demotion only ever fires at fold time)."""
         if not self.config.get("enabled", default=True):
             return
         if not self.config.get("archive_tool_outputs", default=True):
@@ -172,7 +174,7 @@ class SessionArchive(core.module.Module):
             return
         if not isinstance(live_msgs, list):
             return
-        for m in live_msgs[-20:]:
+        for m in live_msgs[-100:]:
             if not isinstance(m, dict) or m.get("role") != "tool":
                 continue
             c = _extract_text(m.get("content", ""))
@@ -191,6 +193,10 @@ class SessionArchive(core.module.Module):
         # one-time backfill of pre-existing history, lazily on first message
         # (channel context is guaranteed bound here, unlike on_ready)
         await self._maybe_backfill()
+        # sync tool rows on the user turn as well: a single round can carry
+        # many tool outputs, and syncing here guarantees every row is
+        # archived verbatim before the next fold can demote it.
+        await self._sync_unarchived_tool_rows()
         self._append("user", content)
 
     async def on_assistant_message(self, content: str):
